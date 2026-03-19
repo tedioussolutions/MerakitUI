@@ -1,0 +1,2 @@
+[console_scripts]
+meraki-tui = meraki_tui.main:main

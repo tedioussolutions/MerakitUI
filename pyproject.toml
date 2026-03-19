@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meraki-tui"
+version = "1.0.0"
+description = "Cisco Meraki Dashboard TUI Monitoring Suite"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "textual>=0.47.0",
+    "meraki>=1.40.0",
+    "pyyaml>=6.0.0",
+    "rich>=13.0.0",
+    "aiohttp>=3.9.0",
+    "python-dateutil>=2.8.2",
+]
+
+[project.scripts]
+meraki-tui = "meraki_tui.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

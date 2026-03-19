@@ -1,0 +1,7 @@
+# requirements.txt — Meraki TUI dependencies
+textual>=0.47.0        # TUI framework (async, reactive, CSS-styled widgets)
+meraki>=1.40.0         # Official Cisco Meraki Python SDK
+pyyaml>=6.0.0          # YAML config file parsing
+rich>=13.0.0           # Rich text rendering (used by Textual internally)
+aiohttp>=3.9.0         # Async HTTP (used by meraki.aio internally)
+python-dateutil>=2.8.2 # ISO 8601 datetime parsing
