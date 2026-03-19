@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import meraki, meraki.aio
 from .config import get_config
 from .models import (Alert, AlertSeverity, BandwidthSample, Client, Device,
-    DeviceStatus, DeviceType, FirewallRule, Network, NetworkTraffic,
+    DeviceStatus, DeviceType, FirewallRule, IDSAllowedRule, IDSMode,
+    IDSOrgSettings, IDSProtectedNetworks, IDSSettings, Network, NetworkTraffic,
     Organization, SecurityEvent, SSID, WebhookServer)
 from .utils import infer_device_type, parse_datetime, safe_get, extract_usage_bytes
 
@@ -225,6 +226,11 @@ class MerakiAPIClient:
                 network_id=network_id, src_ip=e.get("srcIp",""), dest_ip=e.get("destIp",""),
                 protocol=e.get("protocol",""), message=e.get("ruleMessage",""),
                 severity=sev, blocked=e.get("blocked", False),
+                signature=e.get("signature", ""),
+                classification=e.get("classification", ""),
+                priority=e.get("priority", 0),
+                sig_source=e.get("sigSource", ""),
+                client_mac=e.get("clientMac", ""),
             ))
         self.cache.set(f"sec_events:{network_id}:{timespan}", events, self.config.cache_ttls["security_events_ttl"])
         return events
@@ -277,6 +283,61 @@ class MerakiAPIClient:
         self.cache.set(f"ssids:{network_id}", ssids, 120)
         return ssids
 
+    async def get_org_ids_settings(self, org_id: str) -> Optional[IDSOrgSettings]:
+        """Fetch organization-level IDS/IPS settings."""
+        cached = self.cache.get(f"ids_org:{org_id}")
+        if cached: return cached
+        dashboard = await self._get_dashboard()
+        try:
+            response = await self._call(org_id,
+                dashboard.appliance.getOrganizationApplianceSecurityIntrusion(org_id))
+            if response is None:
+                return None
+            allowed_rules = [
+                IDSAllowedRule(
+                    rule_id=r.get("ruleId", ""),
+                    message=r.get("message", ""),
+                )
+                for r in response.get("allowedRules", [])
+            ]
+            result = IDSOrgSettings(allowed_rules=allowed_rules)
+            self.cache.set(f".ids_org:{org_id}", result, 300)
+            return result
+        except Exception:
+            return None
+
+    async def get_network_ids_settings(self, network_id: str, org_id: str = "global") -> Optional[IDSSettings]:
+        """Fetch network-level IDS/IPS settings."""
+        cached = self.cache.get(f"ids_net:{network_id}")
+        if cached: return cached
+        dashboard = await self._get_dashboard()
+        try:
+            response = await self._call(org_id,
+                dashboard.appliance.getNetworkApplianceSecurityIntrusion(network_id))
+            if response is None:
+                return None
+            mode = IDSMode(response.get("mode", "disabled"))
+            ids_rulesets = response.get("idsRulesets", "balanced")
+
+            pn = response.get("protectedNetworks")
+            protected_networks = None
+            if pn:
+                protected_networks = IDSProtectedNetworks(
+                    use_default=pn.get("useDefault", True),
+                    included_cidr=pn.get("includedCidr", []),
+                    excluded_cidr=pn.get("excludedCidr", []),
+                )
+
+            result = IDSSettings(
+                mode=mode,
+                ids_rulesets=ids_rulesets,
+                protected_networks=protected_networks,
+            )
+            self.cache.set(f"ids_net:{network_id}", result, 300)
+            return result
+        except Exception:
+            return None
+
     async def submit_action_batch(self, org_id: str, actions: List[Dict],
                                    confirmed: bool = True, synchronous: bool = False) -> Optional[Dict]:
         dashboard = await self._get_dashboard()
@@ -291,7 +352,8 @@ class MerakiAPIClient:
     def invalidate_network_cache(self, network_id: str) -> None:
         for prefix in [f"clients:{network_id}", f"fw_rules:{network_id}",
                        f"sec_events:{network_id}", f"traffic:{network_id}",
-                       f"events:{network_id}", f"ssids:{network_id}"]:
+                       f"events:{network_id}", f"ssids:{network_id}",
+                       f"ids_net:{network_id}"]:
             self.cache.invalidate_prefix(prefix)
 
 

@@ -34,6 +34,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "topology_ttl": 300,
         "analytics_ttl": 120,
         "security_events_ttl": 60,
+        "ids_settings_ttl": 300,
     },
     "saved_views": {},
     "orgs": {},

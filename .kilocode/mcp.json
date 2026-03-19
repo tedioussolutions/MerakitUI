@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "spine": {
-      "type": "streamable-http",
-      "url": "https://mcp.getspine.ai/mcp"
-    }
-  }
-}

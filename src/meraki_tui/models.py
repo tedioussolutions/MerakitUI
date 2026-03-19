@@ -152,10 +152,21 @@ class SecurityEvent:
     message: str = ""
     severity: AlertSeverity = AlertSeverity.INFO
     blocked: bool = False
+    # IDS-specific fields
+    signature: str = ""
+    classification: str = ""
+    priority: int = 0
+    sig_source: str = ""
+    client_mac: str = ""
 
     @property
     def severity_icon(self) -> str:
         return {"critical":"🔴","warning":"🟡","informational":"🔵"}.get(self.severity.value,"🔵")
+
+    @property
+    def is_ids_event(self) -> bool:
+        """True when the event originated from the IDS/IPS engine."""
+        return self.event_type in ("ids-alerts",) or bool(self.signature)
 
 
 @dataclass
@@ -235,3 +246,39 @@ class SSID:
     band_selection: str = "Dual band operation"
     visible: bool = True
     client_count: int = 0
+
+
+class IDSMode(str, Enum):
+    """IDS operational mode."""
+    DISABLED = "disabled"
+    DETECTION = "detection"
+    PREVENTION = "prevention"
+
+
+@dataclass
+class IDSAllowedRule:
+    """An IDS rule that has been whitelisted."""
+    rule_id: str
+    message: str
+
+
+@dataclass
+class IDSProtectedNetworks:
+    """Networks protected by IDS."""
+    use_default: bool
+    included_cidr: list[str]
+    excluded_cidr: list[str]
+
+
+@dataclass
+class IDSSettings:
+    """Network-level IDS/IPS configuration."""
+    mode: IDSMode
+    ids_rulesets: str  # "connectivity" | "balanced" | "security"
+    protected_networks: IDSProtectedNetworks | None = None
+
+
+@dataclass
+class IDSOrgSettings:
+    """Organization-level IDS/IPS configuration."""
+    allowed_rules: list[IDSAllowedRule]
